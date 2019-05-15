@@ -1,0 +1,203 @@
+﻿@model SearchSideBySideViewModel
+@{
+    ViewBag.Title = "Search Side by Side";
+    ViewBag.ShowSearchInNavbar = false;
+    ViewBag.AutofocusSearch = true;
+    ViewBag.SearchTerm = Model.SearchTerm;
+}
+
+<section role="main" class="main-container page-search-sxs">
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12">
+                <h1>Step 1: enter a search query</h1>
+                @ViewHelpers.Section(
+                    this,
+                    "instructions",
+                    @<text>Instructions</text>,
+                    @<text></text>,
+                    @<text>
+                        <p>Do the right thing, at the right time.</p>
+                    </text> ,
+                    expanded: false)
+
+                <form aria-label="Package search bar" action="@Url.SearchSideBySide()" method="get">
+                    @Html.Partial("_SearchBar")
+                </form>
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.SearchTerm))
+        {
+            <div class="row">
+                <div class="col-xs-12">
+                    <h1>Step 2: examine the search results</h1>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-6">
+                    <div class="list-packages" role="list">
+                        <h2 class="text-center">Old results</h2>
+                        @{ var oldItemIndex = 0; }
+                        @foreach (var package in Model.OldItems)
+                        {
+                            @Html.Partial(
+                                "_ListPackage",
+                                package,
+                                new ViewDataDictionary
+                                {
+                                    { "eventName", "old-search-selection" },
+                                    { "itemIndex", oldItemIndex },
+                                    { "showEditButton", false },
+                                })
+                            oldItemIndex++;
+                        }
+
+                        @if (Model.OldItems.Count == 0)
+                        {
+                            <i>No results.</i>
+                        }
+                    </div>
+                </div>
+                <div class="col-xs-6">
+                    <div class="list-packages" role="list">
+                        <h2 class="text-center">New results</h2>
+                        @{ var newItemIndex = 0; }
+                        @foreach (var package in Model.NewItems)
+                        {
+                            @Html.Partial(
+                                "_ListPackage",
+                                package,
+                                new ViewDataDictionary
+                                {
+                                    { "eventName", "new-search-selection" },
+                                    { "itemIndex", newItemIndex },
+                                    { "showEditButton", false },
+                                })
+                            newItemIndex++;
+                        }
+
+                        @if (Model.NewItems.Count == 0)
+                        {
+                            <i>No results.</i>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-xs-12">
+                    <h1>Step 3: provide feedback</h1>
+                    <p>All fields are optional, but please take some time to tell us your thoughts!</p>
+
+                    @using (Html.BeginForm("SearchSideBySide", "Experiments"))
+                    {
+                        <fieldset class="form">
+                            @Html.AntiForgeryToken()
+
+                            <div class="form-group @Html.HasErrorFor(m => m.BetterSide)">
+                                @Html.ShowLabelFor(m => m.BetterSide)
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="better-side" id="better-side-old" value="Old">
+                                        Old results
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="better-side" id="better-side-new" value="New">
+                                        New results
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="better-side" id="better-side-neither" value="Neither">
+                                        Neither
+                                    </label>
+                                </div>
+                                @Html.ShowValidationMessagesFor(m => m.BetterSide)
+                            </div>
+                            <div class="hidden form-group @Html.HasErrorFor(m => m.MostRelevantPackage)" id="most-revelant-package">
+                                @Html.ShowLabelFor(m => m.MostRelevantPackage)
+                                @Html.ShowTextBoxFor(m => m.MostRelevantPackage, placeholder: "Package ID")
+                                @Html.ShowValidationMessagesFor(m => m.MostRelevantPackage)
+                            </div>
+                            <div class="hidden form-group @Html.HasErrorFor(m => m.ExpectedPackages)" id="expected-packages">
+                                @Html.ShowLabelFor(m => m.ExpectedPackages)
+                                @Html.ShowTextBoxFor(m => m.ExpectedPackages, placeholder: "PackageA, PackageB")
+                                @Html.ShowValidationMessagesFor(m => m.ExpectedPackages)
+                            </div>
+                            <div class="form-group @Html.HasErrorFor(m => m.Comments)">
+                                @Html.ShowLabelFor(m => m.Comments)
+                                @Html.ShowTextAreaFor(m => m.Comments, 5, 50)
+                                @Html.ShowValidationMessagesFor(m => m.Comments)
+                            </div>
+                            <div class="form-group @Html.HasErrorFor(m => m.EmailAddress)">
+                                @Html.ShowLabelFor(m => m.EmailAddress)
+                                @Html.ShowTextBoxFor(m => m.EmailAddress)
+                                @Html.ShowValidationMessagesFor(m => m.EmailAddress)
+                            </div>
+                            <div class="form-group">
+                                <input type="submit" class="btn btn-primary form-control" value="Submit feedback" title="Submit feedback" />
+                            </div>
+                        </fieldset>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+
+@section bottomScripts {
+    @ViewHelpers.SectionsScript(this)
+    <script type="text/javascript">
+        @if (!string.IsNullOrWhiteSpace(Model.SearchTerm))
+        {
+            // Emit an event representing the search page and the page index. This make it easier for the search selection
+            // event to be correlated in Google Analytics.
+            <text>
+            window.nuget.sendAnalyticsEvent('search-page', 'search-sxs-prerel', @Html.Raw(Json.Encode(Model.SearchTerm)), 0);
+            </text>
+        }
+        
+        $(function () {
+            var $betterSideOld = $("#better-side-old");
+            var $betterSideNew = $("#better-side-new");
+            var $betterSideNeither = $("#better-side-neither");
+            var $mostRevelantPackage = $("#most-revelant-package");
+            var $mostRevelantPackageInput = $mostRevelantPackage.find("input");
+            var $expectedPackages = $("#expected-packages");
+            var $expectedPackagesInput = $expectedPackages.find("input");
+            var $emailAddress = $('#EmailAddress');
+
+            var storage = window['localStorage'];
+            if (storage) {
+                var key = 'search_sxs_email';
+                var email = storage.getItem(key);
+                if (email !== null) {
+                    $emailAddress.val(email);
+                }
+
+                $emailAddress.closest('form').submit(function () {
+                    storage.setItem(key, $emailAddress.val());
+                });
+            }
+
+            $("input[type=radio]").change(function () {
+                if ($betterSideOld.prop('checked') || $betterSideNew.prop('checked')) {
+                    $mostRevelantPackage.removeClass('hidden');
+                    $expectedPackages.addClass('hidden');
+
+                    // Reset the input names so only the visible field is submitted.
+                    $mostRevelantPackageInput.attr('name', 'MostRelevantPackage');
+                    $expectedPackagesInput.attr('name', '');
+                }
+
+                if ($betterSideNeither.prop('checked')) {
+                    $mostRevelantPackage.addClass('hidden');
+                    $mostRevelantPackageInput.attr('name', '');
+
+                    // Reset the input names so only the visible field is submitted.
+                    $expectedPackages.removeClass('hidden');
+                    $expectedPackagesInput.attr('name', 'ExpectedPackages');
+                }
+            });
+        })
+    </script>
+}
